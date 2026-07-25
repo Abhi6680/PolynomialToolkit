@@ -1,42 +1,55 @@
-// Render Polynomial Graph dynamically using Chart.js
-function plotPolynomial(coeffsArr) {
-    const ctx = document.getElementById('polyChart').getContext('2d');
-    const labels = [];
-    const dataPoints = [];
+let chartInstance = null;
+
+function evaluatePolynomial(coeffs, x) {
+    let y = 0;
+    for (let deg = 0; deg < coeffs.length; deg++) {
+        y += coeffs[deg] * Math.pow(x, deg);
+    }
+    return y;
+}
+
+function renderPolynomialGraph(coeffs, containerId = 'polyChart') {
+    const ctx = document.getElementById(containerId).getContext('2d');
+    const xValues = [];
+    const yValues = [];
 
     for (let x = -10; x <= 10; x += 0.2) {
-        labels.push(x.toFixed(1));
-        let y = 0;
-        for (let i = 0; i < coeffsArr.length; i++) {
-            y += coeffsArr[i] * Math.pow(x, i);
-        }
-        dataPoints.push(y);
+        xValues.push(x.toFixed(1));
+        yValues.push(evaluatePolynomial(coeffs, x));
     }
 
-    if (window.myChart) {
-        window.myChart.destroy();
+    if (chartInstance) {
+        chartInstance.destroy();
     }
 
-    window.myChart = new Chart(ctx, {
+    chartInstance = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: labels,
+            labels: xValues,
             datasets: [{
                 label: 'P(x)',
-                data: dataPoints,
+                data: yValues,
                 borderColor: '#2563eb',
                 backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                borderWidth: 2,
+                borderWidth: 2.5,
                 fill: true,
                 pointRadius: 0
             }]
         },
         options: {
             responsive: true,
+            plugins: {
+                legend: { display: true }
+            },
             scales: {
                 x: { title: { display: true, text: 'x' } },
                 y: { title: { display: true, text: 'P(x)' } }
             }
         }
     });
+}
+
+function handlePlot() {
+    const input = document.getElementById('polyInput').value;
+    renderPolynomialGraph([1, 2, 1]);
 }

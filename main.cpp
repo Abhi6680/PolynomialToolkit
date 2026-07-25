@@ -24,16 +24,22 @@ T getValidInput(const std::string& prompt) {
 
 Polynomial inputPolynomialPrompt(const std::string& label) {
     std::cout << "Choose input method for " << label << ":\n";
-    std::cout << "  1. String Expression (e.g. 3x^2 - 5x + 1)\n";
+    std::cout << "  1. String Expression (e.g. (x+1)^2 or 3x^2 - 5x + 1)\n";
     std::cout << "  2. Raw Degree & Coefficients Array\n";
     int mode = getValidInput<int>("Select option (1-2): ");
 
     if (mode == 1) {
-        std::cout << "Enter expression: ";
-        std::string expr;
-        std::cin >> std::ws;
-        std::getline(std::cin, expr);
-        return Polynomial::parse(expr);
+        while (true) {
+            std::cout << "Enter expression: ";
+            std::string expr;
+            std::cin >> std::ws;
+            std::getline(std::cin, expr);
+            try {
+                return Polynomial::parse(expr);
+            } catch (const std::exception& e) {
+                std::cout << e.what() << "\nPlease try again.\n";
+            }
+        }
     } else {
         Polynomial p;
         std::cout << "Enter degree followed by coefficients (c0 to cN):\n";

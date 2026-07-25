@@ -4,6 +4,9 @@
 #include <sstream>
 #include <cctype>
 #include <map>
+#include <stdexcept>
+#include <stack>
+#include <vector>
 
 void Polynomial::cleanup() {
     delete[] coeffs;
@@ -306,61 +309,135 @@ void Polynomial::printFactors() const {
     std::cout << "\n";
 }
 
-Polynomial Polynomial::parse(const std::string& expr) {
-    std::map<int, double> termMap;
-    std::string cleanExpr;
-    
-    for (char c : expr) {
-        if (!std::isspace(c)) cleanExpr += c;
-    }
-    if (cleanExpr.empty()) return Polynomial();
+enum TokenType { NUMBER, VAR, OP_ADD, OP_SUB, OP_MUL, OP_POW, LPAREN, RPAREN };
 
+struct Token {
+    TokenType type;
+    double numVal = 0.0;
+};
+
+Polynomial Polynomial::parse(const std::string& expr) {
+    if (expr.empty()) throw std::invalid_argument("Parser Error: Empty expression string.");
+
+    std::vector<Token> tokens;
+    int n = expr.length();
     int i = 0;
-    int n = cleanExpr.length();
 
     while (i < n) {
-        int sign = 1;
-        if (cleanExpr[i] == '+') { i++; }
-        else if (cleanExpr[i] == '-') { sign = -1; i++; }
+        char c = expr[i];
+        if (std::isspace(c)) { i++; continue; }
 
-        double coeff = 1.0;
-        bool hasCoeff = false;
-        int startCoeff = i;
-
-        while (i < n && (std::isdigit(cleanExpr[i]) || cleanExpr[i] == '.')) {
+        if (std::isdigit(c) || c == '.') {
+            int start = i;
+            while (i < n && (std::isdigit(expr[i]) || expr[i] == '.')) i++;
+            try {
+                double val = std::stod(expr.substr(start, i - start));
+                tokens.push_back({NUMBER, val});
+            } catch (...) {
+                throw std::invalid_argument("Parser Error: Invalid numeric constant near position " + std::to_string(start));
+            }
+        } else if (c == 'x' || c == 'X') {
+            if (!tokens.empty() && (tokens.back().type == NUMBER || tokens.back().type == RPAREN || tokens.back().type == VAR)) {
+                tokens.push_back({OP_MUL, 0});
+            }
+            tokens.push_back({VAR, 0});
             i++;
-            hasCoeff = true;
+        } else if (c == '+') { tokens.push_back({OP_ADD, 0}); i++; }
+        else if (c == '-') {
+            if (tokens.empty() || tokens.back().type == LPAREN || tokens.back().type == OP_ADD || 
+                tokens.back().type == OP_SUB || tokens.back().type == OP_MUL || tokens.back().type == OP_POW) {
+                tokens.push_back({NUMBER, 0.0});
+            }
+            tokens.push_back({OP_SUB, 0}); 
+            i++; 
         }
-
-        if (hasCoeff) {
-            coeff = std::stod(cleanExpr.substr(startCoeff, i - startCoeff));
+        else if (c == '*') { tokens.push_back({OP_MUL, 0}); i++; }
+        else if (c == '^') { tokens.push_back({OP_POW, 0}); i++; }
+        else if (c == '(') {
+            if (!tokens.empty() && (tokens.back().type == NUMBER || tokens.back().type == VAR || tokens.back().type == RPAREN)) {
+                tokens.push_back({OP_MUL, 0});
+            }
+            tokens.push_back({LPAREN, 0}); 
+            i++; 
         }
-        coeff *= sign;
+        else if (c == ')') { tokens.push_back({RPAREN, 0}); i++; }
+        else {
+            throw std::invalid_argument(std::string("Parser Error: Unexpected character '") + c + "' at index " + std::to_string(i));
+        }
+    }
 
-        int power = 0;
-        if (i < n && (cleanExpr[i] == 'x' || cleanExpr[i] == 'X')) {
-            i++;
-            power = 1;
-            if (i < n && cleanExpr[i] == '^') {
-                i++;
-                int startPower = i;
-                if (i < n && (cleanExpr[i] == '+' || cleanExpr[i] == '-')) i++;
-                while (i < n && std::isdigit(cleanExpr[i])) i++;
-                power = std::stoi(cleanExpr.substr(startPower, i - startPower));
+    int parenDepth = 0;
+    for (const auto& tok : tokens) {
+        if (tok.type == LPAREN) parenDepth++;
+        if (tok.type == RPAREN) parenDepth--;
+        if (parenDepth < 0) throw std::invalid_argument("Parser Error: Unmatched closing parenthesis ')'");
+    }
+    if (parenDepth != 0) throw std::invalid_argument("Parser Error: Unmatched opening parenthesis '('");
+
+    std::vector<Token> rpn;
+    std::stack<Token> opStack;
+
+    auto precedence = [](TokenType type) {
+        if (type == OP_POW) return 3;
+        if (type == OP_MUL) return 2;
+        if (type == OP_ADD || type == OP_SUB) return 1;
+        return 0;
+    };
+
+    for (const auto& tok : tokens) {
+        if (tok.type == NUMBER || tok.type == VAR) {
+            rpn.push_back(tok);
+        } else if (tok.type == LPAREN) {
+            opStack.push(tok);
+        } else if (tok.type == RPAREN) {
+            while (!opStack.empty() && opStack.top().type != LPAREN) {
+                rpn.push_back(opStack.top());
+                opStack.pop();
+            }
+            if (!opStack.empty()) opStack.pop();
+        } else {
+            while (!opStack.empty() && precedence(opStack.top().type) >= precedence(tok.type) && tok.type != OP_POW) {
+                rpn.push_back(opStack.top());
+                opStack.pop();
+            }
+            opStack.push(tok);
+        }
+    }
+    while (!opStack.empty()) {
+        rpn.push_back(opStack.top());
+        opStack.pop();
+    }
+
+    std::stack<Polynomial> polyStack;
+
+    for (const auto& tok : rpn) {
+        if (tok.type == NUMBER) {
+            double c[1] = {tok.numVal};
+            polyStack.push(Polynomial(c, 0));
+        } else if (tok.type == VAR) {
+            double c[2] = {0.0, 1.0};
+            polyStack.push(Polynomial(c, 1));
+        } else {
+            if (polyStack.size() < 2) throw std::invalid_argument("Parser Error: Malformed operator expression.");
+            Polynomial b = polyStack.top(); polyStack.pop();
+            Polynomial a = polyStack.top(); polyStack.pop();
+
+            if (tok.type == OP_ADD) polyStack.push(a + b);
+            else if (tok.type == OP_SUB) polyStack.push(a - b);
+            else if (tok.type == OP_MUL) polyStack.push(a * b);
+            else if (tok.type == OP_POW) {
+                int exp = static_cast<int>(b.evaluate(0));
+                Polynomial powRes;
+                double unit[1] = {1.0};
+                powRes = Polynomial(unit, 0);
+                for (int p = 0; p < exp; p++) powRes = powRes * a;
+                polyStack.push(powRes);
             }
         }
-
-        termMap[power] += coeff;
     }
 
-    int maxDeg = termMap.empty() ? 0 : termMap.rbegin()->first;
-    Polynomial result(maxDeg);
-    for (const auto& pair : termMap) {
-        if (pair.first <= maxDeg) {
-            result.coeffs[pair.first] = pair.second;
-        }
-    }
-    return result;
+    if (polyStack.empty()) throw std::invalid_argument("Parser Error: Evaluation failed.");
+    return polyStack.top();
 }
 
 std::ostream& operator<<(std::ostream& os, const Polynomial& p) {

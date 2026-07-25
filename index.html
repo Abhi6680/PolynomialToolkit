@@ -1,51 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Polynomial Toolkit</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta charset="UTF-8">
+    <title>Polynomial Grapher</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <div class="container">
-    <h1>Polynomial & Calculus Toolkit</h1>
-
-    <div class="card">
-      <label for="coeffs">Coefficients (lowest to highest power, space-separated):</label>
-      <input type="text" id="coeffs" placeholder="e.g. -6 1 1  (for x^2 + x - 6)">
-      
-      <div class="input-row">
-        <div>
-          <label for="evalX">Evaluate at x:</label>
-          <input type="number" id="evalX" value="2">
+    <div style="max-width: 600px; margin: 20px auto;">
+        <h2>Polynomial Graph Plotter</h2>
+        <input type="text" id="polyInput" placeholder="e.g. (x+1)^2 or 3x^2 - 5x + 1" style="width: 70%; padding: 8px;">
+        <button onclick="handlePlot()" style="padding: 8px 16px;">Plot Graph</button>
+        <div style="margin-top: 20px;">
+            <canvas id="polyChart"></canvas>
         </div>
-        <div>
-          <label for="tangentX">Tangent / Normal at x:</label>
-          <input type="number" id="tangentX" value="1">
-        </div>
-      </div>
-
-      <button id="calcBtn">Analyze & Plot</button>
     </div>
-
-    <div class="card results" id="output">
-      <h3>Calculus Analysis</h3>
-      <div class="result-grid">
-        <p><strong>P(x):</strong> <span id="poly-display">-</span></p>
-        <p><strong>P(x) Evaluated:</strong> <span id="poly-eval">-</span></p>
-        <p><strong>1st Derivative P'(x):</strong> <span id="deriv-1">-</span></p>
-        <p><strong>2nd Derivative P''(x):</strong> <span id="deriv-2">-</span></p>
-        <p><strong>Tangent Line:</strong> <span id="tangent-display">-</span></p>
-        <p><strong>Normal Line:</strong> <span id="normal-display">-</span></p>
-      </div>
-    </div>
-
-    <div class="card">
-      <canvas id="polyChart"></canvas>
-    </div>
-  </div>
-
-  <script src="app.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>

@@ -45,7 +45,6 @@ public:
     Polynomial compose(const Polynomial& g) const;
     void divide(const Polynomial& divisor, Polynomial& quotient, Polynomial& remainder) const;
 
-    // Advanced CAS Extensions
     Polynomial gcd(const Polynomial& other) const;
     void printFactors() const;
     static Polynomial parse(const std::string& expr);

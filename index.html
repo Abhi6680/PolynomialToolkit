@@ -2,30 +2,18 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Polynomial & Derivative Plotter</title>
+    <title>Polynomial Grapher</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 30px auto; padding: 0 20px; }
-        .input-group { margin-bottom: 15px; }
-        input[type="text"] { width: 100%; padding: 8px; font-size: 16px; margin-top: 5px; }
-        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; }
-        button:hover { background: #0056b3; }
-        .chart-container { margin-top: 30px; position: relative; height: 400px; }
-    </style>
 </head>
 <body>
-    <h2>Polynomial Graph & Derivative Visualizer</h2>
-    <div class="input-group">
-        <label for="polyInput"><strong>Enter Polynomial f(x):</strong></label>
-        <input type="text" id="polyInput" placeholder="e.g., (x+1)^2 or 3x^3 - 2x + 5" value="(x+1)^2">
+    <div style="max-width: 600px; margin: 20px auto;">
+        <h2>Polynomial Graph Plotter</h2>
+        <input type="text" id="polyInput" placeholder="e.g. (x+1)^2 or 3x^2 - 5x + 1" style="width: 70%; padding: 8px;">
+        <button onclick="handlePlot()" style="padding: 8px 16px;">Plot Graph</button>
+        <div style="margin-top: 20px;">
+            <canvas id="polyChart"></canvas>
+        </div>
     </div>
-    <button onclick="plotPolynomial()">Plot Function & Derivative</button>
-
-    <div class="chart-container">
-        <canvas id="polyChart"></canvas>
-    </div>
-
     <script src="app.js"></script>
 </body>
 </html>

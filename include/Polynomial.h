@@ -1,32 +1,56 @@
 #ifndef POLYNOMIAL_H
 #define POLYNOMIAL_H
 
-#include <map>
-#include <string>
 #include <iostream>
-#include <stdexcept>
+#include <cmath>
+#include <string>
 
 class Polynomial {
 private:
-    std::map<int, double> terms;
+    double* coeffs;
+    int degree;
 
-    void cleanupZeros();
-    static Polynomial parseSimple(const std::string& expr);
+    void cleanup();
 
 public:
-    Polynomial() = default;
-    Polynomial(const std::map<int, double>& terms) : terms(terms) { cleanupZeros(); }
+    Polynomial();
+    Polynomial(int deg);
+    Polynomial(const double* arr, int deg);
+    Polynomial(const Polynomial& other);
+    ~Polynomial();
 
-    static Polynomial parse(const std::string& expr);
-    Polynomial derivative() const;
-    double evaluate(double x) const;
+    Polynomial& operator=(const Polynomial& other);
+
     int getDegree() const;
+    bool isZero() const;
+    double evaluate(double x) const;
 
     Polynomial operator+(const Polynomial& other) const;
+    Polynomial operator-(const Polynomial& other) const;
     Polynomial operator*(const Polynomial& other) const;
-    bool operator==(const Polynomial& other) const;
 
-    std::string toString() const;
+    Polynomial derivative() const;
+    Polynomial secondDerivative() const;
+    Polynomial nthDerivative(int n) const;
+
+    Polynomial indefiniteIntegral(double C = 0.0) const;
+    double definiteIntegral(double a, double b) const;
+
+    void tangentLine(double x0, double& m, double& c) const;
+    void normalLine(double x0, double& m, double& c) const;
+
+    double findRoot(double initialGuess, int maxIter = 1000, double tol = 1e-7) const;
+    void findCriticalPoints(double searchStart, double searchEnd, double step = 0.1) const;
+
+    Polynomial compose(const Polynomial& g) const;
+    void divide(const Polynomial& divisor, Polynomial& quotient, Polynomial& remainder) const;
+
+    Polynomial gcd(const Polynomial& other) const;
+    void printFactors() const;
+    static Polynomial parse(const std::string& expr);
+
+    friend std::ostream& operator<<(std::ostream& os, const Polynomial& p);
+    friend std::istream& operator>>(std::istream& is, Polynomial& p);
 };
 
 #endif

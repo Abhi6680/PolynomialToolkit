@@ -17,7 +17,7 @@ T getValidInput(const std::string& prompt) {
         if (std::cin >> val) {
             return val;
         }
-        std::cout << "Invalid input. Please try again.\n";
+        std::cout << "Invalid input. Please enter a valid value.\n";
         clearInputBuffer();
     }
 }
@@ -33,9 +33,7 @@ std::string getOrdinalSuffix(int n) {
 }
 
 void askToSaveResult(Polynomial& p1, const Polynomial& result) {
-    char choice;
-    std::cout << "Save result as new primary P1? (Y/N): ";
-    std::cin >> choice;
+    char choice = getValidInput<char>("Save result as new primary P1? (Y/N): ");
     if (choice == 'y' || choice == 'Y') {
         p1 = result;
         std::cout << "Updated primary P1(x) = " << p1 << "\n";
@@ -119,14 +117,15 @@ int main() {
                 break;
             }
             case 5: {
-                int order = getValidInput<int>("Enter derivative order (1, 2, 3...): ");
-                if (order > 0) {
-                    Polynomial res = p1.nthDerivative(order);
-                    std::cout << order << getOrdinalSuffix(order) << " Derivative: " << res << "\n";
-                    askToSaveResult(p1, res);
-                } else {
+                int order;
+                while (true) {
+                    order = getValidInput<int>("Enter derivative order (1, 2, 3...): ");
+                    if (order > 0) break;
                     std::cout << "Derivative order must be greater than 0.\n";
                 }
+                Polynomial res = p1.nthDerivative(order);
+                std::cout << order << getOrdinalSuffix(order) << " Derivative: " << res << "\n";
+                askToSaveResult(p1, res);
                 break;
             }
             case 6: {

@@ -183,7 +183,7 @@ void Polynomial::findCriticalPoints(double searchStart, double searchEnd, double
             } else if (secondDerivVal < -1e-7) {
                 std::cout << "Local Maximum\n";
             } else {
-                std::cout << "Inflexion / Saddle Point\n";
+                std::cout << "Inflexion Point\n";
             }
         }
     }

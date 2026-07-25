@@ -49,6 +49,13 @@ int Polynomial::getDegree() const {
     return degree;
 }
 
+bool Polynomial::isZero() const {
+    for (int i = 0; i <= degree; ++i) {
+        if (std::abs(coeffs[i]) > 1e-9) return false;
+    }
+    return true;
+}
+
 double Polynomial::evaluate(double x) const {
     double result = coeffs[degree];
     for (int i = degree - 1; i >= 0; --i) {
@@ -111,7 +118,7 @@ Polynomial Polynomial::nthDerivative(int n) const {
     Polynomial res = *this;
     for (int i = 0; i < n; ++i) {
         res = res.derivative();
-        if (res.degree == 0 && res.coeffs[0] == 0.0) break;
+        if (res.isZero()) break;
     }
     return res;
 }
@@ -206,7 +213,7 @@ Polynomial Polynomial::compose(const Polynomial& g) const {
 }
 
 void Polynomial::divide(const Polynomial& divisor, Polynomial& quotient, Polynomial& remainder) const {
-    if (divisor.degree == 0 && divisor.coeffs[0] == 0.0) {
+    if (divisor.isZero()) {
         return;
     }
 
@@ -219,7 +226,7 @@ void Polynomial::divide(const Polynomial& divisor, Polynomial& quotient, Polynom
     remainder = *this;
     quotient = Polynomial(degree - divisor.degree);
 
-    while (remainder.degree >= divisor.degree && !(remainder.degree == 0 && remainder.coeffs[0] == 0.0)) {
+    while (remainder.degree >= divisor.degree && !remainder.isZero()) {
         int degDiff = remainder.degree - divisor.degree;
         double scale = remainder.coeffs[remainder.degree] / divisor.coeffs[divisor.degree];
 

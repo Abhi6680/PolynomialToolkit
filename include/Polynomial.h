@@ -2,6 +2,7 @@
 #define POLYNOMIAL_H
 
 #include <iostream>
+#include <cmath>
 
 class Polynomial {
 private:
@@ -20,6 +21,7 @@ public:
     Polynomial& operator=(const Polynomial& other);
 
     int getDegree() const;
+    bool isZero() const;
     double evaluate(double x) const;
 
     Polynomial operator+(const Polynomial& other) const;

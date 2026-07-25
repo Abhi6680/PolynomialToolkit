@@ -103,6 +103,19 @@ Polynomial Polynomial::derivative() const {
     return res;
 }
 
+Polynomial Polynomial::secondDerivative() const {
+    return derivative().derivative();
+}
+
+Polynomial Polynomial::nthDerivative(int n) const {
+    Polynomial res = *this;
+    for (int i = 0; i < n; ++i) {
+        res = res.derivative();
+        if (res.degree == 0 && res.coeffs[0] == 0.0) break;
+    }
+    return res;
+}
+
 Polynomial Polynomial::indefiniteIntegral(double C) const {
     Polynomial res(degree + 1);
     res.coeffs[0] = C;
@@ -115,6 +128,118 @@ Polynomial Polynomial::indefiniteIntegral(double C) const {
 double Polynomial::definiteIntegral(double a, double b) const {
     Polynomial F = indefiniteIntegral();
     return F.evaluate(b) - F.evaluate(a);
+}
+
+void Polynomial::tangentLine(double x0, double& m, double& c) const {
+    m = derivative().evaluate(x0);
+    double y0 = evaluate(x0);
+    c = y0 - m * x0;
+}
+
+void Polynomial::normalLine(double x0, double& m, double& c) const {
+    double derivVal = derivative().evaluate(x0);
+    if (std::abs(derivVal) < 1e-9) {
+        m = 1e9;
+    } else {
+        m = -1.0 / derivVal;
+    }
+    double y0 = evaluate(x0);
+    c = y0 - m * x0;
+}
+
+double Polynomial::findRoot(double initialGuess, int maxIter, double tol) const {
+    double x = initialGuess;
+    Polynomial d = derivative();
+
+    for (int i = 0; i < maxIter; ++i) {
+        double fx = evaluate(x);
+        double dfx = d.evaluate(x);
+
+        if (std::abs(dfx) < 1e-12) break;
+
+        double nextX = x - (fx / dfx);
+        if (std::abs(nextX - x) < tol) return nextX;
+
+        x = nextX;
+    }
+    return x;
+}
+
+void Polynomial::findCriticalPoints(double searchStart, double searchEnd, double step) const {
+    Polynomial d = derivative();
+    Polynomial d2 = secondDerivative();
+
+    for (double x = searchStart; x <= searchEnd; x += step) {
+        double f_prime_x = d.evaluate(x);
+        double f_prime_next = d.evaluate(x + step);
+
+        if (f_prime_x * f_prime_next <= 0) {
+            double critPt = d.findRoot(x + step / 2.0);
+            double secondDerivVal = d2.evaluate(critPt);
+
+            std::cout << "Critical Point at x = " << critPt << ", P(x) = " << evaluate(critPt) << " -> ";
+            if (secondDerivVal > 1e-7) {
+                std::cout << "Local Minimum\n";
+            } else if (secondDerivVal < -1e-7) {
+                std::cout << "Local Maximum\n";
+            } else {
+                std::cout << "Inflexion / Saddle Point\n";
+            }
+        }
+    }
+}
+
+Polynomial Polynomial::compose(const Polynomial& g) const {
+    Polynomial result;
+    Polynomial currentPower(0);
+    currentPower.coeffs[0] = 1.0;
+
+    for (int i = 0; i <= degree; ++i) {
+        Polynomial term = currentPower;
+        for (int k = 0; k <= term.degree; ++k) {
+            term.coeffs[k] *= coeffs[i];
+        }
+        result = result + term;
+        currentPower = currentPower * g;
+    }
+    return result;
+}
+
+void Polynomial::divide(const Polynomial& divisor, Polynomial& quotient, Polynomial& remainder) const {
+    if (divisor.degree == 0 && divisor.coeffs[0] == 0.0) {
+        return;
+    }
+
+    if (degree < divisor.degree) {
+        quotient = Polynomial();
+        remainder = *this;
+        return;
+    }
+
+    remainder = *this;
+    quotient = Polynomial(degree - divisor.degree);
+
+    while (remainder.degree >= divisor.degree && !(remainder.degree == 0 && remainder.coeffs[0] == 0.0)) {
+        int degDiff = remainder.degree - divisor.degree;
+        double scale = remainder.coeffs[remainder.degree] / divisor.coeffs[divisor.degree];
+
+        quotient.coeffs[degDiff] = scale;
+
+        Polynomial temp(degDiff);
+        temp.coeffs[degDiff] = scale;
+        Polynomial sub = temp * divisor;
+
+        remainder = remainder - sub;
+
+        int newDeg = 0;
+        for (int i = remainder.degree; i >= 0; --i) {
+            if (std::abs(remainder.coeffs[i]) > 1e-9) {
+                newDeg = i;
+                break;
+            }
+        }
+        remainder.degree = newDeg;
+    }
 }
 
 std::ostream& operator<<(std::ostream& os, const Polynomial& p) {

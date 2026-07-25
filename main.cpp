@@ -22,6 +22,26 @@ T getValidInput(const std::string& prompt) {
     }
 }
 
+Polynomial inputPolynomialPrompt(const std::string& label) {
+    std::cout << "Choose input method for " << label << ":\n";
+    std::cout << "  1. String Expression (e.g. 3x^2 - 5x + 1)\n";
+    std::cout << "  2. Raw Degree & Coefficients Array\n";
+    int mode = getValidInput<int>("Select option (1-2): ");
+
+    if (mode == 1) {
+        std::cout << "Enter expression: ";
+        std::string expr;
+        std::cin >> std::ws;
+        std::getline(std::cin, expr);
+        return Polynomial::parse(expr);
+    } else {
+        Polynomial p;
+        std::cout << "Enter degree followed by coefficients (c0 to cN):\n";
+        std::cin >> p;
+        return p;
+    }
+}
+
 std::string getOrdinalSuffix(int n) {
     if (n % 100 >= 11 && n % 100 <= 13) return "th";
     switch (n % 10) {
@@ -45,11 +65,10 @@ int main() {
     int choice = 0;
 
     std::cout << "========================================\n";
-    std::cout << " Polynomial & Calculus Toolkit v1.0\n";
+    std::cout << " Polynomial & Calculus Toolkit v2.0 (CAS)\n";
     std::cout << "========================================\n\n";
 
-    std::cout << "Enter primary Polynomial P1:\n";
-    std::cin >> p1;
+    p1 = inputPolynomialPrompt("Primary Polynomial P1");
 
     while (true) {
         std::cout << "\n-------------------------------------------\n";
@@ -67,46 +86,44 @@ int main() {
         std::cout << "10. Find Root (Newton-Raphson)\n";
         std::cout << "11. Find Critical Points\n";
         std::cout << "12. Composition P1(P2(x))\n";
-        std::cout << "13. Re-enter Primary Polynomial P1\n";
-        std::cout << "14. Exit\n";
+        std::cout << "13. Compute GCD with P2(x)\n";
+        std::cout << "14. Factorize P1(x)\n";
+        std::cout << "15. Re-enter Primary Polynomial P1\n";
+        std::cout << "16. Exit\n";
 
-        choice = getValidInput<int>("Select an option (1-14): ");
+        choice = getValidInput<int>("Select an option (1-16): ");
 
-        if (choice == 14) {
+        if (choice == 16) {
             std::cout << "Exiting toolkit. Goodbye!\n";
             break;
         }
 
         switch (choice) {
             case 1: {
-                std::cout << "Enter Polynomial P2 to add:\n";
-                std::cin >> p2;
+                p2 = inputPolynomialPrompt("Polynomial P2 to add");
                 Polynomial res = p1 + p2;
                 std::cout << "Result: " << res << "\n";
                 askToSaveResult(p1, res);
                 break;
             }
             case 2: {
-                std::cout << "Enter Polynomial P2 to subtract:\n";
-                std::cin >> p2;
+                p2 = inputPolynomialPrompt("Polynomial P2 to subtract");
                 Polynomial res = p1 - p2;
                 std::cout << "Result: " << res << "\n";
                 askToSaveResult(p1, res);
                 break;
             }
             case 3: {
-                std::cout << "Enter Polynomial P2 to multiply:\n";
-                std::cin >> p2;
+                p2 = inputPolynomialPrompt("Polynomial P2 to multiply");
                 Polynomial res = p1 * p2;
                 std::cout << "Result: " << res << "\n";
                 askToSaveResult(p1, res);
                 break;
             }
             case 4: {
-                std::cout << "Enter Divisor Polynomial P2:\n";
-                std::cin >> p2;
+                p2 = inputPolynomialPrompt("Divisor Polynomial P2");
                 if (p2.isZero()) {
-                    std::cout << "Error: Division by the zero polynomial is undefined!\n";
+                    std::cout << "Error: Division by zero polynomial is undefined!\n";
                 } else {
                     Polynomial quotient, remainder;
                     p1.divide(p2, quotient, remainder);
@@ -175,20 +192,29 @@ int main() {
                 break;
             }
             case 12: {
-                std::cout << "Enter inner polynomial G(x) for P1(G(x)):\n";
-                std::cin >> p2;
+                p2 = inputPolynomialPrompt("Inner polynomial G(x) for P1(G(x))");
                 Polynomial res = p1.compose(p2);
                 std::cout << "Composition P1(G(x)) = " << res << "\n";
                 askToSaveResult(p1, res);
                 break;
             }
             case 13: {
-                std::cout << "Enter new primary Polynomial P1:\n";
-                std::cin >> p1;
+                p2 = inputPolynomialPrompt("Second Polynomial P2 for GCD");
+                Polynomial common = p1.gcd(p2);
+                std::cout << "GCD(P1, P2) = " << common << "\n";
+                break;
+            }
+            case 14: {
+                std::cout << "Factorizing P1(x):\n";
+                p1.printFactors();
+                break;
+            }
+            case 15: {
+                p1 = inputPolynomialPrompt("New Primary Polynomial P1");
                 break;
             }
             default:
-                std::cout << "Invalid option choice. Pick between 1 and 14.\n";
+                std::cout << "Invalid option choice. Pick between 1 and 16.\n";
                 break;
         }
     }

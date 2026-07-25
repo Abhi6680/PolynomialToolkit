@@ -1,6 +1,9 @@
 #include "../include/Polynomial.h"
 #include <cmath>
 #include <algorithm>
+#include <sstream>
+#include <cctype>
+#include <map>
 
 void Polynomial::cleanup() {
     delete[] coeffs;
@@ -247,6 +250,117 @@ void Polynomial::divide(const Polynomial& divisor, Polynomial& quotient, Polynom
         }
         remainder.degree = newDeg;
     }
+}
+
+Polynomial Polynomial::gcd(const Polynomial& other) const {
+    Polynomial a = *this;
+    Polynomial b = other;
+
+    while (!b.isZero()) {
+        Polynomial q, r;
+        a.divide(b, q, r);
+        a = b;
+        b = r;
+    }
+
+    if (!a.isZero()) {
+        double leadingCoeff = a.coeffs[a.degree];
+        for (int i = 0; i <= a.degree; ++i) {
+            a.coeffs[i] /= leadingCoeff;
+        }
+    }
+    return a;
+}
+
+void Polynomial::printFactors() const {
+    if (isZero()) {
+        std::cout << "0\n";
+        return;
+    }
+
+    Polynomial temp = *this;
+    double leadingCoeff = temp.coeffs[temp.degree];
+    std::cout << "P(x) = " << leadingCoeff;
+
+    for (double x = -50.0; x <= 50.0; x += 0.5) {
+        if (temp.degree <= 0) break;
+
+        double root = temp.findRoot(x);
+        if (std::abs(temp.evaluate(root)) < 1e-4) {
+            root = std::round(root * 1000.0) / 1000.0;
+            std::cout << "(x " << (root >= 0 ? "- " : "+ ") << std::abs(root) << ")";
+
+            double factorCoeffs[2] = {-root, 1.0};
+            Polynomial factor(factorCoeffs, 1);
+
+            Polynomial q, r;
+            temp.divide(factor, q, r);
+            temp = q;
+            x = -50.0;
+        }
+    }
+
+    if (temp.getDegree() > 0 && !temp.isZero()) {
+        std::cout << " * (" << temp << ")";
+    }
+    std::cout << "\n";
+}
+
+Polynomial Polynomial::parse(const std::string& expr) {
+    std::map<int, double> termMap;
+    std::string cleanExpr;
+    
+    for (char c : expr) {
+        if (!std::isspace(c)) cleanExpr += c;
+    }
+    if (cleanExpr.empty()) return Polynomial();
+
+    int i = 0;
+    int n = cleanExpr.length();
+
+    while (i < n) {
+        int sign = 1;
+        if (cleanExpr[i] == '+') { i++; }
+        else if (cleanExpr[i] == '-') { sign = -1; i++; }
+
+        double coeff = 1.0;
+        bool hasCoeff = false;
+        int startCoeff = i;
+
+        while (i < n && (std::isdigit(cleanExpr[i]) || cleanExpr[i] == '.')) {
+            i++;
+            hasCoeff = true;
+        }
+
+        if (hasCoeff) {
+            coeff = std::stod(cleanExpr.substr(startCoeff, i - startCoeff));
+        }
+        coeff *= sign;
+
+        int power = 0;
+        if (i < n && (cleanExpr[i] == 'x' || cleanExpr[i] == 'X')) {
+            i++;
+            power = 1;
+            if (i < n && cleanExpr[i] == '^') {
+                i++;
+                int startPower = i;
+                if (i < n && (cleanExpr[i] == '+' || cleanExpr[i] == '-')) i++;
+                while (i < n && std::isdigit(cleanExpr[i])) i++;
+                power = std::stoi(cleanExpr.substr(startPower, i - startPower));
+            }
+        }
+
+        termMap[power] += coeff;
+    }
+
+    int maxDeg = termMap.empty() ? 0 : termMap.rbegin()->first;
+    Polynomial result(maxDeg);
+    for (const auto& pair : termMap) {
+        if (pair.first <= maxDeg) {
+            result.coeffs[pair.first] = pair.second;
+        }
+    }
+    return result;
 }
 
 std::ostream& operator<<(std::ostream& os, const Polynomial& p) {

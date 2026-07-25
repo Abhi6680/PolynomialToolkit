@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <cmath>
+#include <string>
 
 class Polynomial {
 private:
@@ -43,6 +44,11 @@ public:
 
     Polynomial compose(const Polynomial& g) const;
     void divide(const Polynomial& divisor, Polynomial& quotient, Polynomial& remainder) const;
+
+    // Advanced CAS Extensions
+    Polynomial gcd(const Polynomial& other) const;
+    void printFactors() const;
+    static Polynomial parse(const std::string& expr);
 
     friend std::ostream& operator<<(std::ostream& os, const Polynomial& p);
     friend std::istream& operator>>(std::istream& is, Polynomial& p);

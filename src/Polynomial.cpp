@@ -1,264 +1,186 @@
-#include "../include/Polynomial.h"
+#include "Polynomial.h"
 #include <cmath>
 #include <algorithm>
 #include <sstream>
+#include <iomanip>
 #include <cctype>
-#include <map>
 #include <stdexcept>
-#include <stack>
-#include <vector>
 
-void Polynomial::cleanup() {
-    delete[] coeffs;
-    coeffs = nullptr;
+// ==========================================
+// Constructors
+// ==========================================
+
+Polynomial::Polynomial() {
+    // Represents the zero polynomial (empty terms vector)
 }
 
-Polynomial::Polynomial() : degree(0) {
-    coeffs = new double[1]{0.0};
-}
-
-Polynomial::Polynomial(int deg) : degree(deg < 0 ? 0 : deg) {
-    coeffs = new double[degree + 1]{0.0};
-}
-
-Polynomial::Polynomial(const double* arr, int deg) : degree(deg < 0 ? 0 : deg) {
-    coeffs = new double[degree + 1];
-    for (int i = 0; i <= degree; ++i) {
-        coeffs[i] = arr[i];
+Polynomial::Polynomial(double constant) {
+    if (std::abs(constant) > 1e-9) {
+        terms.emplace_back(constant, 0);
     }
 }
 
-Polynomial::Polynomial(const Polynomial& other) : degree(other.degree) {
-    coeffs = new double[degree + 1];
-    for (int i = 0; i <= degree; ++i) {
-        coeffs[i] = other.coeffs[i];
+Polynomial::Polynomial(const std::vector<Term>& initialTerms) : terms(initialTerms) {
+    simplify();
+}
+
+// ==========================================
+// Dynamic Term Management
+// ==========================================
+
+void Polynomial::addTerm(double coeff, int exp) {
+    if (std::abs(coeff) > 1e-9) {
+        terms.emplace_back(coeff, exp);
     }
 }
 
-Polynomial::~Polynomial() {
-    cleanup();
-}
+void Polynomial::simplify() {
+    if (terms.empty()) return;
 
-Polynomial& Polynomial::operator=(const Polynomial& other) {
-    if (this != &other) {
-        cleanup();
-        degree = other.degree;
-        coeffs = new double[degree + 1];
-        for (int i = 0; i <= degree; ++i) {
-            coeffs[i] = other.coeffs[i];
+    // 1. Sort descending by exponent: O(n log n)
+    std::sort(terms.begin(), terms.end(), [](const Term& a, const Term& b) {
+        return a.exp > b.exp;
+    });
+
+    // 2. Combine like terms with identical exponent: O(n)
+    std::vector<Term> combined;
+    for (const auto& t : terms) {
+        if (std::abs(t.coeff) < 1e-9) continue;
+        if (!combined.empty() && combined.back().exp == t.exp) {
+            combined.back().coeff += t.coeff;
+            if (std::abs(combined.back().coeff) < 1e-9) {
+                combined.pop_back();
+            }
+        } else {
+            combined.push_back(t);
         }
     }
-    return *this;
+
+    terms = std::move(combined);
 }
 
-int Polynomial::getDegree() const {
-    return degree;
+int Polynomial::degree() const {
+    if (terms.empty()) return 0;
+    return terms.front().exp;
 }
 
 bool Polynomial::isZero() const {
-    for (int i = 0; i <= degree; ++i) {
-        if (std::abs(coeffs[i]) > 1e-9) return false;
+    return terms.empty();
+}
+
+const std::vector<Term>& Polynomial::getTerms() const {
+    return terms;
+}
+
+// ==========================================
+// Operator Overloading
+// ==========================================
+
+Polynomial Polynomial::operator+(const Polynomial& other) const {
+    Polynomial res;
+    res.terms.reserve(terms.size() + other.terms.size());
+    for (const auto& t : terms) res.terms.push_back(t);
+    for (const auto& t : other.terms) res.terms.push_back(t);
+    res.simplify();
+    return res;
+}
+
+Polynomial Polynomial::operator-(const Polynomial& other) const {
+    Polynomial res;
+    res.terms.reserve(terms.size() + other.terms.size());
+    for (const auto& t : terms) res.terms.push_back(t);
+    for (const auto& t : other.terms) res.terms.emplace_back(-t.coeff, t.exp);
+    res.simplify();
+    return res;
+}
+
+Polynomial Polynomial::operator*(const Polynomial& other) const {
+    if (isZero() || other.isZero()) {
+        return Polynomial();
+    }
+    Polynomial res;
+    res.terms.reserve(terms.size() * other.terms.size());
+    // Outer product: O(n * m)
+    for (const auto& t1 : terms) {
+        for (const auto& t2 : other.terms) {
+            res.terms.emplace_back(t1.coeff * t2.coeff, t1.exp + t2.exp);
+        }
+    }
+    res.simplify();
+    return res;
+}
+
+bool Polynomial::operator==(const Polynomial& other) const {
+    Polynomial a = *this;
+    Polynomial b = other;
+    a.simplify();
+    b.simplify();
+    if (a.terms.size() != b.terms.size()) return false;
+    for (size_t i = 0; i < a.terms.size(); ++i) {
+        if (a.terms[i].exp != b.terms[i].exp) return false;
+        if (std::abs(a.terms[i].coeff - b.terms[i].coeff) > 1e-7) return false;
     }
     return true;
 }
 
-double Polynomial::evaluate(double x) const {
-    double result = coeffs[degree];
-    for (int i = degree - 1; i >= 0; --i) {
-        result = result * x + coeffs[i];
+bool Polynomial::operator!=(const Polynomial& other) const {
+    return !(*this == other);
+}
+
+// ==========================================
+// Algebraic Operations
+// ==========================================
+
+void Polynomial::divide(const Polynomial& divisor, Polynomial& quotient, Polynomial& remainder) const {
+    if (divisor.isZero()) {
+        throw std::runtime_error("Division by zero polynomial is undefined!");
     }
-    return result;
-}
 
-Polynomial Polynomial::operator+(const Polynomial& other) const {
-    int maxDeg = std::max(degree, other.degree);
-    Polynomial result(maxDeg);
+    quotient = Polynomial();
+    remainder = *this;
+    remainder.simplify();
 
-    for (int i = 0; i <= maxDeg; ++i) {
-        double c1 = (i <= degree) ? coeffs[i] : 0.0;
-        double c2 = (i <= other.degree) ? other.coeffs[i] : 0.0;
-        result.coeffs[i] = c1 + c2;
-    }
-    return result;
-}
+    Polynomial div = divisor;
+    div.simplify();
 
-Polynomial Polynomial::operator-(const Polynomial& other) const {
-    int maxDeg = std::max(degree, other.degree);
-    Polynomial result(maxDeg);
+    while (!remainder.isZero() && remainder.degree() >= div.degree()) {
+        double leadCoeff = remainder.terms[0].coeff / div.terms[0].coeff;
+        int leadExp = remainder.terms[0].exp - div.terms[0].exp;
 
-    for (int i = 0; i <= maxDeg; ++i) {
-        double c1 = (i <= degree) ? coeffs[i] : 0.0;
-        double c2 = (i <= other.degree) ? other.coeffs[i] : 0.0;
-        result.coeffs[i] = c1 - c2;
-    }
-    return result;
-}
+        Polynomial stepPoly;
+        stepPoly.addTerm(leadCoeff, leadExp);
 
-Polynomial Polynomial::operator*(const Polynomial& other) const {
-    int newDegree = degree + other.degree;
-    Polynomial result(newDegree);
-
-    for (int i = 0; i <= degree; ++i) {
-        for (int j = 0; j <= other.degree; ++j) {
-            result.coeffs[i + j] += coeffs[i] * other.coeffs[j];
-        }
-    }
-    return result;
-}
-
-Polynomial Polynomial::derivative() const {
-    if (degree == 0) return Polynomial();
-
-    Polynomial res(degree - 1);
-    for (int i = 1; i <= degree; ++i) {
-        res.coeffs[i - 1] = coeffs[i] * i;
-    }
-    return res;
-}
-
-Polynomial Polynomial::secondDerivative() const {
-    return derivative().derivative();
-}
-
-Polynomial Polynomial::nthDerivative(int n) const {
-    Polynomial res = *this;
-    for (int i = 0; i < n; ++i) {
-        res = res.derivative();
-        if (res.isZero()) break;
-    }
-    return res;
-}
-
-Polynomial Polynomial::indefiniteIntegral(double C) const {
-    Polynomial res(degree + 1);
-    res.coeffs[0] = C;
-    for (int i = 0; i <= degree; ++i) {
-        res.coeffs[i + 1] = coeffs[i] / (i + 1);
-    }
-    return res;
-}
-
-double Polynomial::definiteIntegral(double a, double b) const {
-    Polynomial F = indefiniteIntegral();
-    return F.evaluate(b) - F.evaluate(a);
-}
-
-void Polynomial::tangentLine(double x0, double& m, double& c) const {
-    m = derivative().evaluate(x0);
-    double y0 = evaluate(x0);
-    c = y0 - m * x0;
-}
-
-void Polynomial::normalLine(double x0, double& m, double& c) const {
-    double derivVal = derivative().evaluate(x0);
-    if (std::abs(derivVal) < 1e-9) {
-        m = 1e9;
-    } else {
-        m = -1.0 / derivVal;
-    }
-    double y0 = evaluate(x0);
-    c = y0 - m * x0;
-}
-
-double Polynomial::findRoot(double initialGuess, int maxIter, double tol) const {
-    double x = initialGuess;
-    Polynomial d = derivative();
-
-    for (int i = 0; i < maxIter; ++i) {
-        double fx = evaluate(x);
-        double dfx = d.evaluate(x);
-
-        if (std::abs(dfx) < 1e-12) break;
-
-        double nextX = x - (fx / dfx);
-        if (std::abs(nextX - x) < tol) return nextX;
-
-        x = nextX;
-    }
-    return x;
-}
-
-void Polynomial::findCriticalPoints(double searchStart, double searchEnd, double step) const {
-    Polynomial d = derivative();
-    Polynomial d2 = secondDerivative();
-
-    for (double x = searchStart; x <= searchEnd; x += step) {
-        double f_prime_x = d.evaluate(x);
-        double f_prime_next = d.evaluate(x + step);
-
-        if (f_prime_x * f_prime_next <= 0) {
-            double critPt = d.findRoot(x + step / 2.0);
-            double secondDerivVal = d2.evaluate(critPt);
-
-            std::cout << "Critical Point at x = " << critPt << ", P(x) = " << evaluate(critPt) << " -> ";
-            if (secondDerivVal > 1e-7) {
-                std::cout << "Local Minimum\n";
-            } else if (secondDerivVal < -1e-7) {
-                std::cout << "Local Maximum\n";
-            } else {
-                std::cout << "Inflexion Point\n";
-            }
-        }
+        quotient = quotient + stepPoly;
+        remainder = remainder - (stepPoly * div);
+        remainder.simplify();
     }
 }
 
 Polynomial Polynomial::compose(const Polynomial& g) const {
-    Polynomial result;
-    Polynomial currentPower(0);
-    currentPower.coeffs[0] = 1.0;
+    if (terms.empty()) return Polynomial();
 
-    for (int i = 0; i <= degree; ++i) {
-        Polynomial term = currentPower;
-        for (int k = 0; k <= term.degree; ++k) {
-            term.coeffs[k] *= coeffs[i];
+    // Polynomial composition P(g(x)) using Horner's method
+    Polynomial result(terms[0].coeff);
+    for (size_t i = 1; i < terms.size(); ++i) {
+        int powerDiff = terms[i - 1].exp - terms[i].exp;
+        for (int p = 0; p < powerDiff; ++p) {
+            result = result * g;
         }
-        result = result + term;
-        currentPower = currentPower * g;
+        result = result + Polynomial(terms[i].coeff);
+    }
+    for (int p = 0; p < terms.back().exp; ++p) {
+        result = result * g;
     }
     return result;
-}
-
-void Polynomial::divide(const Polynomial& divisor, Polynomial& quotient, Polynomial& remainder) const {
-    if (divisor.isZero()) {
-        return;
-    }
-
-    if (degree < divisor.degree) {
-        quotient = Polynomial();
-        remainder = *this;
-        return;
-    }
-
-    remainder = *this;
-    quotient = Polynomial(degree - divisor.degree);
-
-    while (remainder.degree >= divisor.degree && !remainder.isZero()) {
-        int degDiff = remainder.degree - divisor.degree;
-        double scale = remainder.coeffs[remainder.degree] / divisor.coeffs[divisor.degree];
-
-        quotient.coeffs[degDiff] = scale;
-
-        Polynomial temp(degDiff);
-        temp.coeffs[degDiff] = scale;
-        Polynomial sub = temp * divisor;
-
-        remainder = remainder - sub;
-
-        int newDeg = 0;
-        for (int i = remainder.degree; i >= 0; --i) {
-            if (std::abs(remainder.coeffs[i]) > 1e-9) {
-                newDeg = i;
-                break;
-            }
-        }
-        remainder.degree = newDeg;
-    }
 }
 
 Polynomial Polynomial::gcd(const Polynomial& other) const {
     Polynomial a = *this;
     Polynomial b = other;
+    a.simplify();
+    b.simplify();
 
+    // Euclidean Algorithm for Polynomials
     while (!b.isZero()) {
         Polynomial q, r;
         a.divide(b, q, r);
@@ -266,211 +188,500 @@ Polynomial Polynomial::gcd(const Polynomial& other) const {
         b = r;
     }
 
+    // Normalize GCD to make leading coefficient 1.0 (monic)
     if (!a.isZero()) {
-        double leadingCoeff = a.coeffs[a.degree];
-        for (int i = 0; i <= a.degree; ++i) {
-            a.coeffs[i] /= leadingCoeff;
+        double lead = a.terms[0].coeff;
+        for (auto& t : a.terms) {
+            t.coeff /= lead;
         }
+        a.simplify();
     }
     return a;
 }
 
 void Polynomial::printFactors() const {
-    if (isZero()) {
+    Polynomial p = *this;
+    p.simplify();
+
+    if (p.isZero()) {
         std::cout << "0\n";
         return;
     }
 
-    Polynomial temp = *this;
-    double leadingCoeff = temp.coeffs[temp.degree];
-    std::cout << "P(x) = " << leadingCoeff;
+    int deg = p.degree();
+    if (deg == 0) {
+        std::cout << p.terms[0].coeff << "\n";
+        return;
+    }
 
-    for (double x = -50.0; x <= 50.0; x += 0.5) {
-        if (temp.degree <= 0) break;
+    if (deg == 1) {
+        // ax + b = a(x + b/a)
+        double a = p.terms[0].coeff;
+        double b = (p.terms.size() > 1 && p.terms[1].exp == 0) ? p.terms[1].coeff : 0.0;
+        double root = -b / a;
+        if (std::abs(a - 1.0) > 1e-6) {
+            std::cout << a << " * ";
+        }
+        std::cout << "(x " << (root >= 0 ? "- " : "+ ") << std::abs(root) << ")\n";
+        std::cout << "Root: x = " << root << "\n";
+        return;
+    }
 
-        double root = temp.findRoot(x);
-        if (std::abs(temp.evaluate(root)) < 1e-4) {
-            root = std::round(root * 1000.0) / 1000.0;
-            std::cout << "(x " << (root >= 0 ? "- " : "+ ") << std::abs(root) << ")";
-
-            double factorCoeffs[2] = {-root, 1.0};
-            Polynomial factor(factorCoeffs, 1);
-
-            Polynomial q, r;
-            temp.divide(factor, q, r);
-            temp = q;
-            x = -50.0;
+    if (deg == 2) {
+        // ax^2 + bx + c
+        double a = p.terms[0].coeff;
+        double b = 0.0, c = 0.0;
+        for (const auto& t : p.terms) {
+            if (t.exp == 1) b = t.coeff;
+            if (t.exp == 0) c = t.coeff;
+        }
+        double disc = b * b - 4 * a * c;
+        if (disc >= 0) {
+            double r1 = (-b + std::sqrt(disc)) / (2 * a);
+            double r2 = (-b - std::sqrt(disc)) / (2 * a);
+            if (std::abs(a - 1.0) > 1e-6) {
+                std::cout << a << " * ";
+            }
+            std::cout << "(x " << (r1 >= 0 ? "- " : "+ ") << std::abs(r1) << ")"
+                      << " * (x " << (r2 >= 0 ? "- " : "+ ") << std::abs(r2) << ")\n";
+            std::cout << "Real Roots: x1 = " << r1 << ", x2 = " << r2 << "\n";
+            return;
+        } else {
+            std::cout << p << " (Irreducible quadratic over Reals, Discriminant = " << disc << " < 0)\n";
+            std::cout << "Complex Conjugate Roots: " << (-b / (2 * a)) << " +/- " << (std::sqrt(-disc) / (2 * a)) << "i\n";
+            return;
         }
     }
 
-    if (temp.getDegree() > 0 && !temp.isZero()) {
-        std::cout << " * (" << temp << ")";
+    // General case (degree >= 3): Find real roots and factorize
+    std::vector<double> roots;
+    Polynomial current = p;
+
+    // Scan for real roots in range [-50, 50]
+    for (double x = -50.0; x <= 50.0; x += 0.25) {
+        try {
+            double r = current.findRoot(x, 60, 1e-6);
+            if (std::abs(current.evaluate(r)) < 1e-4) {
+                // Check if distinct
+                bool exists = false;
+                for (double existing : roots) {
+                    if (std::abs(existing - r) < 1e-2) {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (!exists) {
+                    roots.push_back(r);
+                }
+            }
+        } catch (...) {}
     }
-    std::cout << "\n";
+
+    if (roots.empty()) {
+        std::cout << "No simple rational/real roots found numerically.\n";
+        std::cout << "Expression: " << p << "\n";
+    } else {
+        std::cout << "Identified Real Roots:\n";
+        for (size_t i = 0; i < roots.size(); ++i) {
+            std::cout << "  Root " << (i + 1) << ": x = " << roots[i]
+                      << "  (Linear Factor: (x " << (roots[i] >= 0 ? "- " : "+ ") << std::abs(roots[i]) << "))\n";
+        }
+    }
 }
 
-enum TokenType { NUMBER, VAR, OP_ADD, OP_SUB, OP_MUL, OP_POW, LPAREN, RPAREN };
+// ==========================================
+// Calculus Engine
+// ==========================================
 
-struct Token {
-    TokenType type;
-    double numVal = 0.0;
-};
-
-Polynomial Polynomial::parse(const std::string& expr) {
-    if (expr.empty()) throw std::invalid_argument("Parser Error: Empty expression string.");
-
-    std::vector<Token> tokens;
-    int n = expr.length();
-    int i = 0;
-
-    while (i < n) {
-        char c = expr[i];
-        if (std::isspace(c)) { i++; continue; }
-
-        if (std::isdigit(c) || c == '.') {
-            int start = i;
-            while (i < n && (std::isdigit(expr[i]) || expr[i] == '.')) i++;
-            try {
-                double val = std::stod(expr.substr(start, i - start));
-                tokens.push_back({NUMBER, val});
-            } catch (...) {
-                throw std::invalid_argument("Parser Error: Invalid numeric constant near position " + std::to_string(start));
-            }
-        } else if (c == 'x' || c == 'X') {
-            if (!tokens.empty() && (tokens.back().type == NUMBER || tokens.back().type == RPAREN || tokens.back().type == VAR)) {
-                tokens.push_back({OP_MUL, 0});
-            }
-            tokens.push_back({VAR, 0});
-            i++;
-        } else if (c == '+') { tokens.push_back({OP_ADD, 0}); i++; }
-        else if (c == '-') {
-            if (tokens.empty() || tokens.back().type == LPAREN || tokens.back().type == OP_ADD || 
-                tokens.back().type == OP_SUB || tokens.back().type == OP_MUL || tokens.back().type == OP_POW) {
-                tokens.push_back({NUMBER, 0.0});
-            }
-            tokens.push_back({OP_SUB, 0}); 
-            i++; 
+Polynomial Polynomial::differentiate() const {
+    Polynomial deriv;
+    for (const auto& t : terms) {
+        if (t.exp > 0) {
+            deriv.addTerm(t.coeff * t.exp, t.exp - 1);
         }
-        else if (c == '*') { tokens.push_back({OP_MUL, 0}); i++; }
-        else if (c == '^') { tokens.push_back({OP_POW, 0}); i++; }
-        else if (c == '(') {
-            if (!tokens.empty() && (tokens.back().type == NUMBER || tokens.back().type == VAR || tokens.back().type == RPAREN)) {
-                tokens.push_back({OP_MUL, 0});
-            }
-            tokens.push_back({LPAREN, 0}); 
-            i++; 
+    }
+    deriv.simplify();
+    return deriv;
+}
+
+Polynomial Polynomial::nthDerivative(int order) const {
+    if (order <= 0) return *this;
+    Polynomial result = *this;
+    for (int i = 0; i < order; ++i) {
+        result = result.differentiate();
+        if (result.isZero()) break;
+    }
+    return result;
+}
+
+Polynomial Polynomial::indefiniteIntegral(double c) const {
+    Polynomial integral;
+    for (const auto& t : terms) {
+        integral.addTerm(t.coeff / (t.exp + 1), t.exp + 1);
+    }
+    if (std::abs(c) > 1e-9) {
+        integral.addTerm(c, 0);
+    }
+    integral.simplify();
+    return integral;
+}
+
+double Polynomial::definiteIntegral(double a, double b) const {
+    Polynomial F = indefiniteIntegral(0.0);
+    return F.evaluate(b) - F.evaluate(a);
+}
+
+// ==========================================
+// Numerical Methods & Geometry
+// ==========================================
+
+// Horner's Method: O(n) linear evaluation
+double Polynomial::evaluate(double x) const {
+    if (terms.empty()) return 0.0;
+
+    double result = terms[0].coeff;
+    for (size_t i = 1; i < terms.size(); ++i) {
+        int powerDiff = terms[i - 1].exp - terms[i].exp;
+        for (int p = 0; p < powerDiff; ++p) {
+            result *= x;
         }
-        else if (c == ')') { tokens.push_back({RPAREN, 0}); i++; }
-        else {
-            throw std::invalid_argument(std::string("Parser Error: Unexpected character '") + c + "' at index " + std::to_string(i));
+        result += terms[i].coeff;
+    }
+    for (int p = 0; p < terms.back().exp; ++p) {
+        result *= x;
+    }
+    return result;
+}
+
+void Polynomial::tangentLine(double x0, double& m, double& c) const {
+    double y0 = evaluate(x0);
+    Polynomial deriv = differentiate();
+    m = deriv.evaluate(x0);
+    c = y0 - m * x0;
+}
+
+void Polynomial::normalLine(double x0, double& m, double& c) const {
+    double y0 = evaluate(x0);
+    Polynomial deriv = differentiate();
+    double mTangent = deriv.evaluate(x0);
+
+    if (std::abs(mTangent) < 1e-9) {
+        // Vertical normal line: x = x0
+        m = 1e9;
+        c = x0;
+    } else {
+        m = -1.0 / mTangent;
+        c = y0 - m * x0;
+    }
+}
+
+// Newton-Raphson Method
+double Polynomial::findRoot(double guess, int maxIter, double tol) const {
+    Polynomial pPrime = differentiate();
+    double x = guess;
+
+    for (int i = 0; i < maxIter; ++i) {
+        double fx = evaluate(x);
+        if (std::abs(fx) < tol) {
+            return x;
+        }
+
+        double dfx = pPrime.evaluate(x);
+        if (std::abs(dfx) < 1e-12) {
+            // Nudge to escape flat slope / local extremum
+            x += 0.01;
+            continue;
+        }
+
+        double nextX = x - (fx / dfx);
+        if (std::abs(nextX - x) < tol) {
+            return nextX;
+        }
+        x = nextX;
+    }
+
+    return x;
+}
+
+void Polynomial::findCriticalPoints(double start, double end) const {
+    Polynomial pPrime = differentiate();
+    Polynomial pDoublePrime = pPrime.differentiate();
+
+    if (pPrime.isZero()) {
+        std::cout << "Polynomial is constant; all points have zero derivative.\n";
+        return;
+    }
+
+    std::vector<double> criticalPoints;
+    double step = (end - start) / 400.0;
+
+    for (double x = start; x <= end; x += step) {
+        double y1 = pPrime.evaluate(x);
+        double y2 = pPrime.evaluate(x + step);
+
+        if (y1 * y2 <= 0.0 || std::abs(y1) < 1e-4) {
+            double root = pPrime.findRoot(x, 50, 1e-6);
+            if (root >= start - 1e-4 && root <= end + 1e-4) {
+                bool alreadyFound = false;
+                for (double cp : criticalPoints) {
+                    if (std::abs(cp - root) < 1e-3) {
+                        alreadyFound = true;
+                        break;
+                    }
+                }
+                if (!alreadyFound) {
+                    criticalPoints.push_back(root);
+                }
+            }
         }
     }
 
-    int parenDepth = 0;
-    for (const auto& tok : tokens) {
-        if (tok.type == LPAREN) parenDepth++;
-        if (tok.type == RPAREN) parenDepth--;
-        if (parenDepth < 0) throw std::invalid_argument("Parser Error: Unmatched closing parenthesis ')'");
+    if (criticalPoints.empty()) {
+        std::cout << "No critical points found in interval [" << start << ", " << end << "].\n";
+        return;
     }
-    if (parenDepth != 0) throw std::invalid_argument("Parser Error: Unmatched opening parenthesis '('");
 
-    std::vector<Token> rpn;
-    std::stack<Token> opStack;
+    std::sort(criticalPoints.begin(), criticalPoints.end());
+    std::cout << std::left << std::setw(12) << "x"
+              << std::setw(15) << "f(x)"
+              << std::setw(15) << "f''(x)"
+              << "Classification\n";
+    std::cout << "--------------------------------------------------------\n";
 
-    auto precedence = [](TokenType type) {
-        if (type == OP_POW) return 3;
-        if (type == OP_MUL) return 2;
-        if (type == OP_ADD || type == OP_SUB) return 1;
-        return 0;
+    for (double cp : criticalPoints) {
+        double fx = evaluate(cp);
+        double fxx = pDoublePrime.evaluate(cp);
+        std::string classification;
+
+        if (fxx > 1e-5) {
+            classification = "Local Minimum";
+        } else if (fxx < -1e-5) {
+            classification = "Local Maximum";
+        } else {
+            classification = "Point of Inflection";
+        }
+
+        std::cout << std::fixed << std::setprecision(4)
+                  << std::left << std::setw(12) << cp
+                  << std::setw(15) << fx
+                  << std::setw(15) << fxx
+                  << classification << "\n";
+    }
+}
+
+// ==========================================
+// Parsing Logic (Recursive Descent Parser)
+// ==========================================
+
+namespace {
+    struct Tokenizer {
+        std::string src;
+        size_t pos = 0;
+
+        Tokenizer(const std::string& str) : src(str), pos(0) {}
+
+        void skipWhitespace() {
+            while (pos < src.size() && std::isspace(static_cast<unsigned char>(src[pos]))) {
+                ++pos;
+            }
+        }
+
+        char peek() {
+            skipWhitespace();
+            if (pos >= src.size()) return '\0';
+            return src[pos];
+        }
+
+        char get() {
+            skipWhitespace();
+            if (pos >= src.size()) return '\0';
+            return src[pos++];
+        }
     };
 
-    for (const auto& tok : tokens) {
-        if (tok.type == NUMBER || tok.type == VAR) {
-            rpn.push_back(tok);
-        } else if (tok.type == LPAREN) {
-            opStack.push(tok);
-        } else if (tok.type == RPAREN) {
-            while (!opStack.empty() && opStack.top().type != LPAREN) {
-                rpn.push_back(opStack.top());
-                opStack.pop();
-            }
-            if (!opStack.empty()) opStack.pop();
-        } else {
-            while (!opStack.empty() && precedence(opStack.top().type) >= precedence(tok.type) && tok.type != OP_POW) {
-                rpn.push_back(opStack.top());
-                opStack.pop();
-            }
-            opStack.push(tok);
-        }
-    }
-    while (!opStack.empty()) {
-        rpn.push_back(opStack.top());
-        opStack.pop();
-    }
+    // Forward declarations for recursive descent grammar
+    Polynomial parseExpression(Tokenizer& tok);
+    Polynomial parseTerm(Tokenizer& tok);
+    Polynomial parseFactor(Tokenizer& tok);
+    Polynomial parseBase(Tokenizer& tok);
 
-    std::stack<Polynomial> polyStack;
-
-    for (const auto& tok : rpn) {
-        if (tok.type == NUMBER) {
-            double c[1] = {tok.numVal};
-            polyStack.push(Polynomial(c, 0));
-        } else if (tok.type == VAR) {
-            double c[2] = {0.0, 1.0};
-            polyStack.push(Polynomial(c, 1));
-        } else {
-            if (polyStack.size() < 2) throw std::invalid_argument("Parser Error: Malformed operator expression.");
-            Polynomial b = polyStack.top(); polyStack.pop();
-            Polynomial a = polyStack.top(); polyStack.pop();
-
-            if (tok.type == OP_ADD) polyStack.push(a + b);
-            else if (tok.type == OP_SUB) polyStack.push(a - b);
-            else if (tok.type == OP_MUL) polyStack.push(a * b);
-            else if (tok.type == OP_POW) {
-                int exp = static_cast<int>(b.evaluate(0));
-                Polynomial powRes;
-                double unit[1] = {1.0};
-                powRes = Polynomial(unit, 0);
-                for (int p = 0; p < exp; p++) powRes = powRes * a;
-                polyStack.push(powRes);
+    Polynomial parseExpression(Tokenizer& tok) {
+        Polynomial result = parseTerm(tok);
+        while (true) {
+            char op = tok.peek();
+            if (op == '+') {
+                tok.get();
+                result = result + parseTerm(tok);
+            } else if (op == '-') {
+                tok.get();
+                result = result - parseTerm(tok);
+            } else {
+                break;
             }
         }
+        return result;
     }
 
-    if (polyStack.empty()) throw std::invalid_argument("Parser Error: Evaluation failed.");
-    return polyStack.top();
+    Polynomial parseTerm(Tokenizer& tok) {
+        Polynomial result = parseFactor(tok);
+        while (true) {
+            char op = tok.peek();
+            if (op == '*') {
+                tok.get();
+                result = result * parseFactor(tok);
+            } else if (op == '(' || std::isalpha(static_cast<unsigned char>(op))) {
+                // Implicit multiplication: e.g. 2(x+1) or (x+1)(x-1) or 3x
+                result = result * parseFactor(tok);
+            } else {
+                break;
+            }
+        }
+        return result;
+    }
+
+    Polynomial parseFactor(Tokenizer& tok) {
+        Polynomial base = parseBase(tok);
+        if (tok.peek() == '^') {
+            tok.get();
+            tok.skipWhitespace();
+            int exponent = 0;
+            bool negExp = false;
+            if (tok.peek() == '+') tok.get();
+            else if (tok.peek() == '-') { negExp = true; tok.get(); }
+
+            while (std::isdigit(static_cast<unsigned char>(tok.peek()))) {
+                exponent = exponent * 10 + (tok.get() - '0');
+            }
+            if (negExp) {
+                throw std::runtime_error("Negative exponents are not supported in polynomial algebra!");
+            }
+            if (exponent == 0) {
+                return Polynomial(1.0);
+            }
+            Polynomial powerResult(1.0);
+            for (int i = 0; i < exponent; ++i) {
+                powerResult = powerResult * base;
+            }
+            return powerResult;
+        }
+        return base;
+    }
+
+    Polynomial parseBase(Tokenizer& tok) {
+        tok.skipWhitespace();
+        char c = tok.peek();
+
+        // Unary minus or plus
+        if (c == '-') {
+            tok.get();
+            return Polynomial(-1.0) * parseFactor(tok);
+        }
+        if (c == '+') {
+            tok.get();
+            return parseFactor(tok);
+        }
+
+        // Sub-expression in parentheses
+        if (c == '(') {
+            tok.get(); // consume '('
+            Polynomial sub = parseExpression(tok);
+            if (tok.get() != ')') {
+                throw std::runtime_error("Mismatched parentheses in polynomial expression!");
+            }
+            return sub;
+        }
+
+        // Variable 'x' or 'X'
+        if (c == 'x' || c == 'X') {
+            tok.get();
+            Polynomial p;
+            p.addTerm(1.0, 1);
+            return p;
+        }
+
+        // Numeric literal
+        if (std::isdigit(static_cast<unsigned char>(c)) || c == '.') {
+            std::string numStr;
+            while (std::isdigit(static_cast<unsigned char>(tok.peek())) || tok.peek() == '.') {
+                numStr += tok.get();
+            }
+            double val = std::stod(numStr);
+            return Polynomial(val);
+        }
+
+        throw std::runtime_error(std::string("Unexpected token in expression: '") + c + "'");
+    }
+}
+
+Polynomial Polynomial::parse(const std::string& expr) {
+    if (expr.empty()) return Polynomial();
+    Tokenizer tok(expr);
+    Polynomial p = parseExpression(tok);
+    p.simplify();
+    return p;
+}
+
+// ==========================================
+// Formatting & Stream I/O
+// ==========================================
+
+std::string Polynomial::toString() const {
+    if (terms.empty()) {
+        return "0";
+    }
+
+    std::ostringstream oss;
+    bool first = true;
+
+    for (const auto& t : terms) {
+        double c = t.coeff;
+        int e = t.exp;
+
+        if (first) {
+            if (c < 0) oss << "-";
+        } else {
+            if (c < 0) oss << " - ";
+            else oss << " + ";
+        }
+
+        double absC = std::abs(c);
+
+        if (e == 0) {
+            oss << absC;
+        } else {
+            if (std::abs(absC - 1.0) > 1e-9) {
+                oss << absC;
+            }
+            oss << "x";
+            if (e > 1) {
+                oss << "^" << e;
+            }
+        }
+
+        first = false;
+    }
+
+    return oss.str();
 }
 
 std::ostream& operator<<(std::ostream& os, const Polynomial& p) {
-    bool first = true;
-    for (int i = p.degree; i >= 0; --i) {
-        if (p.coeffs[i] == 0.0 && p.degree > 0) continue;
-
-        if (!first && p.coeffs[i] > 0) os << " + ";
-        else if (p.coeffs[i] < 0) os << " - ";
-
-        double absCoeff = std::abs(p.coeffs[i]);
-        if (absCoeff != 1.0 || i == 0) os << absCoeff;
-
-        if (i > 0) {
-            os << "x";
-            if (i > 1) os << "^" << i;
-        }
-        first = false;
-    }
-    if (first) os << "0";
+    os << p.toString();
     return os;
 }
 
 std::istream& operator>>(std::istream& is, Polynomial& p) {
-    int deg;
-    is >> deg;
+    p = Polynomial();
+    int deg = 0;
+    if (!(is >> deg)) return is;
+    if (deg < 0) return is;
 
-    p.cleanup();
-    p.degree = (deg < 0) ? 0 : deg;
-    p.coeffs = new double[p.degree + 1];
-
-    for (int i = 0; i <= p.degree; ++i) {
-        is >> p.coeffs[i];
+    // Reads coefficients c0, c1, ... up to cDeg
+    for (int i = 0; i <= deg; ++i) {
+        double coeff = 0.0;
+        if (is >> coeff) {
+            p.addTerm(coeff, i);
+        }
     }
+    p.simplify();
     return is;
 }

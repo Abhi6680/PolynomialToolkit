@@ -154,3 +154,10 @@ To launch the web visualizer:
 1. Open `index.html` (or `web/index.html`) in any modern web browser (Chrome, Edge, Firefox).
 2. Enter any expression (e.g. `(x+1)^2`, `4x^3 - 2x + 7`, or `3x^2 + 2x`) or click any test preset button.
 3. The dashboard plots $f(x)$ and its derivative $f'(x)$ interactively and displays instantaneous calculations for derivatives, integrals, tangent lines, and normal lines.
+
+## Development Log
+
+### November 21, 2026
+- Reviewed the existing project architecture.
+- Revised project documentation.
+- Reviewed polynomial operations and implementation.

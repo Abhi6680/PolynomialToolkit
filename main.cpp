@@ -29,7 +29,17 @@ Polynomial inputPolynomialPrompt(const std::string& label) {
     std::cout << "\nChoose input method for " << label << ":\n";
     std::cout << "  1. String Expression (e.g. (x+1)^2 or 3x^2 - 5x + 1 or 4x^3 - 2x + 7)\n";
     std::cout << "  2. Raw Degree & Coefficients (c0 to cN)\n";
-    int mode = getValidInput<int>("Select option (1-2): ");
+
+    int mode;
+    while (true) {
+        mode = getValidInput<int>("Select option (1-2): ");
+
+        if (mode == 1 || mode == 2) {
+            break;
+        }
+
+        std::cout << "Invalid option. Please select 1 or 2.\n";
+    }
 
     if (mode == 1) {
         while (true) {

@@ -161,3 +161,5 @@ To launch the web visualizer:
 - Reviewed the existing project architecture.
 - Revised project documentation.
 - Reviewed polynomial operations and implementation.
+## Version Control
+This project uses Git for source control and GitHub for repository hosting. The main branch contains the latest project updates.

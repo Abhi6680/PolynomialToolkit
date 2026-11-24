@@ -49,7 +49,7 @@ cppmanpreet/
 │   ├── index.html
 │   ├── style.css
 │   └── app.js
-├── main.cpp                  # 16-option interactive terminal menu
+├── main.cpp                  # 10-option interactive terminal menu
 ├── CMakeLists.txt            # Modern CMake build configuration
 ├── Makefile                  # Unix/MinGW makefile
 ├── build_and_run.bat         # 1-click Windows compile & run script
@@ -161,5 +161,10 @@ To launch the web visualizer:
 - Reviewed the existing project architecture.
 - Revised project documentation.
 - Reviewed polynomial operations and implementation.
+### November 24, 2026
+- Improved dashboard accessibility with descriptive page and chart labels.
+- Added small-screen layout adjustments for a better mobile viewing experience.
+- Corrected the CLI menu count in the project structure.
+
 ## Version Control
 This project uses Git for source control and GitHub for repository hosting. The main branch contains the latest project updates.

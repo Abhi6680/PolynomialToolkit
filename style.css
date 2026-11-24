@@ -197,3 +197,32 @@ footer {
   font-size: 0.85rem;
   color: var(--text-secondary);
 }
+
+
+/* Small-screen layout improvements */
+@media (max-width: 600px) {
+  body {
+    padding: 12px;
+  }
+
+  h1 {
+    font-size: 1.6rem;
+  }
+
+  .card {
+    padding: 14px;
+  }
+
+  .input-row,
+  .result-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .btn-primary {
+    width: 100%;
+  }
+
+  .chart-container {
+    height: 300px;
+  }
+}
